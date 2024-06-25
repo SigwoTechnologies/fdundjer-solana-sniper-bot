@@ -17,6 +17,8 @@ export class PoolSizeFilter implements Filter {
       const poolSize = new TokenAmount(this.quoteToken, response.value.amount, true);
       let inRange = true;
 
+      // logger.trace({ response, poolSize, tofixed: poolSize.toFixed() });
+
       if (!this.maxPoolSize?.isZero()) {
         inRange = poolSize.raw.lte(this.maxPoolSize.raw);
 
