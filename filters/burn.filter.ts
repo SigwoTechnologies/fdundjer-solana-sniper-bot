@@ -1,10 +1,11 @@
 import { Filter, FilterResult } from './pool-filters';
 import { Connection } from '@solana/web3.js';
 import { LiquidityPoolKeysV4 } from '@raydium-io/raydium-sdk';
-import { logger } from '../helpers';
+import { logger, BURN_AMOUNT } from '../helpers';
 
 export class BurnFilter implements Filter {
   private cachedResult: FilterResult | undefined = undefined;
+  burnAmount: number = 0;
 
   constructor(private readonly connection: Connection) {}
 
@@ -15,7 +16,9 @@ export class BurnFilter implements Filter {
 
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
-      const burned = amount.value.uiAmount === 0;
+      logger.debug(amount);
+      const burned = amount.value.uiAmount === 0 && this.burnAmount > BURN_AMOUNT;
+      this.burnAmount = amount.value.uiAmount ? amount.value.uiAmount : 0;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
       if (result.ok) {

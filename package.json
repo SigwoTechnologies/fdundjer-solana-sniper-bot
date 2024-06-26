@@ -24,7 +24,9 @@
     "npm": "^10.5.2",
     "pino": "^8.18.0",
     "pino-pretty": "^10.3.1",
-    "pino-std-serializers": "^6.2.2"
+    "pino-std-serializers": "^6.2.2",
+    "telegraf": "^4.16.3",
+    "telegram-keyboard": "^2.3.5"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.5",

@@ -3,7 +3,11 @@ import { Listeners } from './listeners';
 import { Connection, KeyedAccountInfo, Keypair } from '@solana/web3.js';
 import { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3, Token, TokenAmount } from '@raydium-io/raydium-sdk';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { Context, Telegraf } from 'telegraf';
+import { message } from 'telegraf/filters';
+import { Keyboard } from 'telegram-keyboard';
 import { Bot, BotConfig } from './bot';
+import { Env, EnvConfig } from './env';
 import { DefaultTransactionExecutor, TransactionExecutor } from './transactions';
 import {
   getToken,
@@ -48,6 +52,9 @@ import {
   CHECK_IF_SOCIALS,
   TRAILING_STOP_LOSS,
   SKIP_SELLING_IF_LOST_MORE_THAN,
+  TELEGRAM_TOKEN,
+  BURN_AMOUNT,
+  BUY_RATE,
 } from './helpers';
 import { version } from './package.json';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
@@ -142,6 +149,9 @@ function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
   logger.info('Bot is running! Press CTRL + C to stop it.');
 }
 
+let context: Context;
+let running = true;
+
 const runListener = async () => {
   logger.level = LOG_LEVEL;
   logger.info('Bot is starting...');
@@ -196,7 +206,7 @@ const runListener = async () => {
     consecutiveMatchCount: CONSECUTIVE_FILTER_MATCHES,
   };
 
-  const bot = new Bot(connection, marketCache, poolCache, txExecutor, botConfig);
+  const bot = new Bot(connection, marketCache, poolCache, txExecutor, botConfig, context);
   const valid = await bot.validate();
 
   if (!valid) {
@@ -229,7 +239,9 @@ const runListener = async () => {
 
     if (!exists && poolOpenTime > runTimestamp) {
       poolCache.save(updatedAccountInfo.accountId.toString(), poolState);
-      await bot.buy(updatedAccountInfo.accountId, poolState);
+      if (running) {
+        await bot.buy(updatedAccountInfo.accountId, poolState);
+      }
     }
   });
 
@@ -246,4 +258,145 @@ const runListener = async () => {
   printDetails(wallet, quoteToken, bot);
 };
 
+let onSetting = '';
+
+export const FilterCheckDuration = 'FilterCheckDuration';
+export const BurnAmount = 'BurnAmount';
+export const BuyRate = 'BuyRate';
+export const CustomFee = 'CustomFee';
+
+export const START = 'Start';
+export const STOP = 'Stop';
+export const SETTING = 'Setting';
+export const ALL_SETTINGS = 'All Settings';
+export const CHECK_DURATION = 'Check Duration';
+export const BURNAMOUNT = 'Burn Amount';
+export const BUY_AMOUNT_RATE = 'Buy Rate';
+export const GAS_FEE = 'Gas Fee';
+export const HOME = 'Home';
+export const SETTINGS = {
+  [CHECK_DURATION]: {
+    desc: '🖋️ Input the Check Duration for Sniper/second.',
+    warn: '🚩 The Value is not valid.\n    Please Input  again.',
+    ok: '✔️ This value is saved.',
+  },
+  [BURNAMOUNT]: {
+    desc: '🖋️ Input the Burn Amount for Sniper/second.',
+    warn: '🚩 The Value is not valid.\n    Please Input again.',
+    ok: '✔️ This value is saved.',
+  },
+  [BUY_AMOUNT_RATE]: {
+    desc: '🖋️ Input Percentage of Buying.',
+    warn: '🚩 The Value is not valid.\n    Please Input again.',
+    ok: '✔️ This value is saved.',
+  },
+  [GAS_FEE]: {
+    desc: '🖋️ Input The Gas_FEE Fee.',
+    warn: '🚩 The Value is not valid.\n    Please Input again.',
+    ok: '✔️ This value is saved.',
+  },
+};
+
+const myEnv = new Env();
+
+const sendHome = async (ctx: Context) => {
+  await ctx.reply(
+    '✋ Welcome! I am always ready for you.',
+    Keyboard.make([[running ? STOP : START, SETTING]])
+      .oneTime(false)
+      .resize()
+      .inline(),
+  );
+};
+
+const sendSetting = async (ctx: Context) => {
+  await ctx.reply(
+    '🛠️ Please Set the Environment.',
+    Keyboard.make([
+      [CHECK_DURATION, BURNAMOUNT],
+      [BUY_AMOUNT_RATE, GAS_FEE],
+      [HOME, ALL_SETTINGS],
+    ])
+      .oneTime(false)
+      .resize()
+      .inline(),
+  );
+};
+const tBot = new Telegraf(TELEGRAM_TOKEN);
+
+tBot.start(async (ctx) => {
+  context = ctx;
+  await sendHome(ctx);
+});
+
+tBot.on(message('text'), async (ctx) => {
+  context = ctx;
+  if (onSetting == '') {
+    await sendHome(ctx);
+    return;
+  }
+  const val = Number.parseFloat(ctx.update.message.text);
+  if (val) {
+    await ctx.reply('✔️ This value is saved.');
+    await sendSetting(ctx);
+    myEnv.saveEnv(onSetting as keyof EnvConfig, val);
+    onSetting = '';
+  } else {
+    ctx.reply('🚩 The Value is not valid.\n    Please Input  again.');
+  }
+});
+
+tBot.on('callback_query', async (ctx: any) => {
+  context = ctx;
+  let button: any = (ctx.update.callback_query as any).data;
+
+  if (button) {
+    switch (button) {
+      case START:
+        if (running) return;
+        running = true;
+        await ctx.reply('Sinper is running!');
+        logger.info('Sinper is running!');
+        await sendHome(ctx);
+        break;
+      case STOP:
+        running = false;
+        await ctx.reply('Sinper is Stopped!');
+        logger.info('Sinper is Stopped!');
+        await sendHome(ctx);
+        break;
+      case SETTING:
+        sendSetting(ctx);
+        break;
+      case ALL_SETTINGS:
+        ctx.reply(
+          `📌\n 1. Check Duration:\t\t ${myEnv.getEnv(FilterCheckDuration) || FILTER_CHECK_DURATION}s\n 2. Burnt Amount:\t\t ${myEnv.getEnv(BurnAmount) || BURN_AMOUNT}\n 3. Buy Rate:\t\t ${myEnv.getEnv(BuyRate) || BUY_RATE}%\n 4. Gas_FEE:\t\t ${myEnv.getEnv(CustomFee) || CUSTOM_FEE}\n`,
+        );
+        break;
+      case CHECK_DURATION:
+        ctx.reply(
+          `📌 \n 1. Default: ${FILTER_CHECK_DURATION}s\n 2. Current: ${myEnv.getEnv(FilterCheckDuration) || FILTER_CHECK_DURATION}s`,
+        );
+        onSetting = CHECK_DURATION;
+        break;
+      case BURNAMOUNT:
+        ctx.reply(`📌 \n 1. Default: ${BURN_AMOUNT}\n 2. Current: ${myEnv.getEnv(BurnAmount) || BURN_AMOUNT}`);
+        onSetting = BURNAMOUNT;
+        break;
+      case BUY_AMOUNT_RATE:
+        ctx.reply(`📌 \n 1. Default: ${BUY_RATE}%\n 2. Current: ${myEnv.getEnv(BuyRate) || BUY_RATE}%`);
+        onSetting = BUY_AMOUNT_RATE;
+        break;
+      case GAS_FEE:
+        ctx.reply(`📌 \n 1. Default: ${CUSTOM_FEE}\n 2. Current: ${myEnv.getEnv(CustomFee) || CUSTOM_FEE}`);
+        onSetting = GAS_FEE;
+        break;
+      case HOME:
+        await sendHome(ctx);
+        break;
+    }
+  }
+});
+
+tBot.launch();
 runListener();

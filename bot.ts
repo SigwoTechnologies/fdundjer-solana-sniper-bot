@@ -23,6 +23,7 @@ import { Semaphore } from 'async-mutex';
 import BN from 'bn.js';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
 import { JitoTransactionExecutor } from './transactions/jito-rpc-transaction-executor';
+import { Context } from 'telegraf';
 
 export interface BotConfig {
   wallet: Keypair;
@@ -69,6 +70,7 @@ export class Bot {
     private readonly poolStorage: PoolCache,
     private readonly txExecutor: TransactionExecutor,
     readonly config: BotConfig,
+    public TGcontext?: Context,
   ) {
     this.isWarp = txExecutor instanceof WarpTransactionExecutor;
     this.isJito = txExecutor instanceof JitoTransactionExecutor;
@@ -154,6 +156,8 @@ export class Bot {
           );
 
           if (result.confirmed) {
+            this.TGcontext?.reply(`https://solscan.io/tx/${result.signature}?cluster=${NETWORK}`);
+
             logger.info(
               {
                 mint: poolState.baseMint.toString(),
@@ -240,6 +244,10 @@ export class Bot {
           );
 
           if (result.confirmed) {
+            this.TGcontext?.reply(
+              `https://dexscreener.com/solana/${rawAccount.mint.toString()}?maker=${this.config.wallet.publicKey}`,
+            );
+            this.TGcontext?.reply(`https://solscan.io/tx/${result.signature}?cluster=${NETWORK}`);
             logger.info(
               {
                 dex: `https://dexscreener.com/solana/${rawAccount.mint.toString()}?maker=${this.config.wallet.publicKey}`,
