@@ -62,7 +62,7 @@ export class PoolFilters {
 
     const result = await Promise.all(this.filters.map((f) => f.execute(poolKeys)));
     const pass = result.every((r) => r.ok);
-    logger.trace({ result, pass });
+    logger.trace(result);
 
     if (pass) {
       return true;

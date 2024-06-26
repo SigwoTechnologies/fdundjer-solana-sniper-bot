@@ -5,9 +5,11 @@ import { logger, BURN_AMOUNT } from '../helpers';
 
 export class BurnFilter implements Filter {
   private cachedResult: FilterResult | undefined = undefined;
-  burnAmount: number = 0;
+  prevAmount: number;
 
-  constructor(private readonly connection: Connection) {}
+  constructor(private readonly connection: Connection) {
+    this.prevAmount = 0;
+  }
 
   async execute(poolKeys: LiquidityPoolKeysV4): Promise<FilterResult> {
     if (this.cachedResult) {
@@ -16,9 +18,13 @@ export class BurnFilter implements Filter {
 
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
-      // logger.debug(amount);
-      const burned = amount.value.uiAmount === 0 && this.burnAmount > BURN_AMOUNT;
-      this.burnAmount = amount.value.uiAmount ? amount.value.uiAmount : 0;
+      // logger.trace({ amount, lpmint: poolKeys.lpMint });
+      amount.value.uiAmount = amount.value.uiAmount
+        ? amount.value.uiAmount
+        : Number(amount.value.amount) / 10 ** amount.value.decimals;
+      // const burned = amount.value.uiAmount === 0 && this.prevAmount > BURN_AMOUNT;
+      const burned = amount.value.uiAmount === 0 && this.prevAmount - amount.value.uiAmount > BURN_AMOUNT;
+      this.prevAmount = amount.value.uiAmount;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
       if (result.ok) {
