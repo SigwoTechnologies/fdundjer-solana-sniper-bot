@@ -18,7 +18,7 @@ import { Liquidity, LiquidityPoolKeysV4, LiquidityStateV4, Percent, Token, Token
 import { MarketCache, PoolCache, SnipeListCache } from './cache';
 import { PoolFilters } from './filters';
 import { TransactionExecutor } from './transactions';
-import { createPoolKeys, logger, NETWORK, sleep } from './helpers';
+import { createPoolKeys, logger, NETWORK, sleep, BUY_RATE } from './helpers';
 import { Semaphore } from 'async-mutex';
 import BN from 'bn.js';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
@@ -142,6 +142,16 @@ export class Bot {
             { mint: poolState.baseMint.toString() },
             `Send buy transaction attempt: ${i + 1}/${this.config.maxBuyRetries}`,
           );
+
+          const response = await this.connection.getTokenAccountBalance(
+            poolKeys.quoteVault,
+            this.connection.commitment,
+          );
+          const poolSize = response.value.uiAmount
+            ? response.value.uiAmount * 10 ** response.value.decimals
+            : Number(response.value.amount);
+          const quoteAmount = new TokenAmount(this.config.quoteToken, `${poolSize * 0.01 * BUY_RATE}`, true);
+
           const tokenOut = new Token(TOKEN_PROGRAM_ID, poolKeys.baseMint, poolKeys.baseDecimals);
           const result = await this.swap(
             poolKeys,
@@ -149,7 +159,8 @@ export class Bot {
             mintAta,
             this.config.quoteToken,
             tokenOut,
-            this.config.quoteAmount,
+            // this.config.quoteAmount,
+            quoteAmount,
             this.config.buySlippage,
             this.config.wallet,
             'buy',
