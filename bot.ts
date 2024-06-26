@@ -361,6 +361,7 @@ export class Bot {
     do {
       try {
         const shouldBuy = await filters.execute(poolKeys);
+        logger.trace({ shouldBuy }, 'shouldBuy');
 
         if (shouldBuy) {
           matchCount++;
