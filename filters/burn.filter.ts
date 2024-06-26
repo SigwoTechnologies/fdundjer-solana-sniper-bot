@@ -16,7 +16,7 @@ export class BurnFilter implements Filter {
 
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
-      logger.debug(amount);
+      // logger.debug(amount);
       const burned = amount.value.uiAmount === 0 && this.burnAmount > BURN_AMOUNT;
       this.burnAmount = amount.value.uiAmount ? amount.value.uiAmount : 0;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
