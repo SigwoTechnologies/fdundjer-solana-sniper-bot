@@ -1,3 +1,5 @@
+import express from 'express';
+
 import { MarketCache, PoolCache } from './cache';
 import { Listeners } from './listeners';
 import { Connection, KeyedAccountInfo, Keypair } from '@solana/web3.js';
@@ -59,6 +61,16 @@ import {
 import { version } from './package.json';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
 import { JitoTransactionExecutor } from './transactions/jito-rpc-transaction-executor';
+
+const app = express();
+
+app.get('/', (req: any, res: any) => {
+  res.send('The TG sniper bot is running.');
+});
+
+app.listen(process.env.PORT, () => {
+  console.log('Example app listening on port 3000!');
+});
 
 const connection = new Connection(RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT,
