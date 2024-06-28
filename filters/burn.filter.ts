@@ -23,7 +23,7 @@ export class BurnFilter implements Filter {
         ? amount.value.uiAmount
         : Number(amount.value.amount) / 10 ** amount.value.decimals;
       // const burned = amount.value.uiAmount === 0 && this.prevAmount > BURN_AMOUNT;
-      const burned = amount.value.uiAmount === 0 && this.prevAmount - amount.value.uiAmount > BURN_AMOUNT;
+      const burned = amount.value.uiAmount === 0 || this.prevAmount - amount.value.uiAmount > BURN_AMOUNT;
       this.prevAmount = amount.value.uiAmount;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
