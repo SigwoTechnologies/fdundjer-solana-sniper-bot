@@ -19,15 +19,15 @@ export class BurnFilter implements Filter {
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
       // logger.trace({ amount, lpmint: poolKeys.lpMint });
-      amount.value.uiAmount = amount.value.uiAmount
-        ? amount.value.uiAmount
-        : Number(amount.value.amount) / 10 ** amount.value.decimals;
+      const lamportAmount = amount.value.uiAmount
+        ? amount.value.uiAmount * 10 ** amount.value.decimals
+        : Number(amount.value.amount);
       // const burned = amount.value.uiAmount === 0 && this.prevAmount > BURN_AMOUNT;
-      const burned = this.prevAmount - amount.value.uiAmount > BURN_AMOUNT * LAMPORTS_PER_SOL;
+      const burned = this.prevAmount - lamportAmount > BURN_AMOUNT * LAMPORTS_PER_SOL;
       logger.debug(
-        `total: ${amount.value.uiAmount / LAMPORTS_PER_SOL}SOL, burned: ${(this.prevAmount - amount.value.uiAmount) / LAMPORTS_PER_SOL}SOL`,
+        `total: ${lamportAmount / LAMPORTS_PER_SOL}SOL, burned: ${(this.prevAmount - lamportAmount) / LAMPORTS_PER_SOL}SOL`,
       );
-      this.prevAmount = amount.value.uiAmount;
+      this.prevAmount = lamportAmount;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
       if (result.ok) {
