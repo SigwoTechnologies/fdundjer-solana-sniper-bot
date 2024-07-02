@@ -5,10 +5,10 @@ import { logger, BURN_AMOUNT } from '../helpers';
 
 export class BurnFilter implements Filter {
   private cachedResult: FilterResult | undefined = undefined;
-  prevAmount: number;
+  oldAmount: number;
 
   constructor(private readonly connection: Connection) {
-    this.prevAmount = 0;
+    this.oldAmount = 0;
   }
 
   async execute(poolKeys: LiquidityPoolKeysV4): Promise<FilterResult> {
@@ -22,12 +22,12 @@ export class BurnFilter implements Filter {
       const lamportAmount = amount.value.uiAmount
         ? amount.value.uiAmount * 10 ** amount.value.decimals
         : Number(amount.value.amount);
-      // const burned = amount.value.uiAmount === 0 && this.prevAmount > BURN_AMOUNT;
-      const burned = this.prevAmount - lamportAmount > BURN_AMOUNT * LAMPORTS_PER_SOL;
+      // const burned = amount.value.uiAmount === 0 && this.oldAmount > BURN_AMOUNT;
+      const burned = this.oldAmount - lamportAmount > BURN_AMOUNT * LAMPORTS_PER_SOL;
       logger.debug(
-        `total: ${lamportAmount / LAMPORTS_PER_SOL}SOL, burned: ${(this.prevAmount - lamportAmount) / LAMPORTS_PER_SOL}SOL`,
+        `total: ${lamportAmount / LAMPORTS_PER_SOL}SOL, burned: ${(this.oldAmount - lamportAmount) / LAMPORTS_PER_SOL}SOL`,
       );
-      this.prevAmount = lamportAmount;
+      this.oldAmount = lamportAmount;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
       if (result.ok) {
