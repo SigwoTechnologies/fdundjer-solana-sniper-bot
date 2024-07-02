@@ -150,7 +150,7 @@ export class Bot {
           const poolSize = response.value.uiAmount
             ? response.value.uiAmount * 10 ** response.value.decimals
             : Number(response.value.amount);
-          const quoteAmount = new TokenAmount(
+          this.config.quoteAmount = new TokenAmount(
             this.config.quoteToken,
             `${Math.floor(poolSize * 0.01 * BUY_RATE)}`,
             true,
@@ -163,8 +163,7 @@ export class Bot {
             mintAta,
             this.config.quoteToken,
             tokenOut,
-            // this.config.quoteAmount,
-            quoteAmount,
+            this.config.quoteAmount,
             this.config.buySlippage,
             this.config.wallet,
             'buy',

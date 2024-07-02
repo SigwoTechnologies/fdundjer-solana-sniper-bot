@@ -1,5 +1,5 @@
 import { Filter, FilterResult } from './pool-filters';
-import { Connection } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { LiquidityPoolKeysV4 } from '@raydium-io/raydium-sdk';
 import { logger, BURN_AMOUNT } from '../helpers';
 
@@ -23,7 +23,10 @@ export class BurnFilter implements Filter {
         ? amount.value.uiAmount
         : Number(amount.value.amount) / 10 ** amount.value.decimals;
       // const burned = amount.value.uiAmount === 0 && this.prevAmount > BURN_AMOUNT;
-      const burned = amount.value.uiAmount === 0 || this.prevAmount - amount.value.uiAmount > BURN_AMOUNT;
+      const burned = this.prevAmount - amount.value.uiAmount > BURN_AMOUNT * LAMPORTS_PER_SOL;
+      logger.debug(
+        `total: ${amount.value.uiAmount / LAMPORTS_PER_SOL}SOL, burned: ${(this.prevAmount - amount.value.uiAmount) / LAMPORTS_PER_SOL}SOL`,
+      );
       this.prevAmount = amount.value.uiAmount;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
