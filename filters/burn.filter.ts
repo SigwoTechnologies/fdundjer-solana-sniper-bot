@@ -28,7 +28,7 @@ export class BurnFilter implements Filter {
           : Number(amount.value.amount) / ((LAMPORTS_PER_SOL / 10 ** 4) * amount.value.decimals);
       const burned = this.oldAmount - solAmount > BURN_AMOUNT;
       logger.debug(
-        `burned: ${burned}, total: ${solAmount}SOL, burned: ${this.oldAmount - solAmount}SOL, BurnAmount: ${BURN_AMOUNT}, uiAmount: ${amount.value.uiAmount}, decimals: ${amount.value.decimals}`,
+        `burned: ${burned}, total: ${solAmount}SOL, burned: ${this.oldAmount - solAmount}SOL, BurnAmount: ${BURN_AMOUNT}`,
       );
       this.oldAmount = solAmount;
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
