@@ -17,11 +17,12 @@ export class BurnFilter implements Filter {
 
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
+      // const burned = amount.value.uiAmount === 0;
+      // logger.debug(`burned: ${amount.value.uiAmount}SOL`);
       // logger.trace({ amount, lpmint: poolKeys.lpMint });
       const solAmount = amount.value.uiAmount
-        ? (10 ** amount.value.decimals / LAMPORTS_PER_SOL) * amount.value.uiAmount
+        ? amount.value.uiAmount / (LAMPORTS_PER_SOL / 10 ** amount.value.decimals)
         : Number(amount.value.amount) / LAMPORTS_PER_SOL;
-      // const burned = amount.value.uiAmount === 0 && this.oldAmount > BURN_AMOUNT;
       const burned = this.oldAmount - solAmount > BURN_AMOUNT;
       logger.debug(`burned: ${burned}, total: ${solAmount}SOL, burned: ${this.oldAmount - solAmount}SOL`);
       this.oldAmount = solAmount;
