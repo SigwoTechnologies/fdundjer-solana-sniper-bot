@@ -1,15 +1,12 @@
 import { Filter, FilterResult } from './pool-filters';
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { LiquidityPoolKeysV4 } from '@raydium-io/raydium-sdk';
-import { logger, BURN_AMOUNT } from '../helpers';
+import { logger, BURN_AMOUNT, sleep } from '../helpers';
 import BN from 'bn.js';
 export class BurnFilter implements Filter {
   private cachedResult: FilterResult | undefined = undefined;
-  oldAmount: number;
 
-  constructor(private readonly connection: Connection) {
-    this.oldAmount = 0;
-  }
+  constructor(private readonly connection: Connection) {}
 
   async execute(poolKeys: LiquidityPoolKeysV4): Promise<FilterResult> {
     if (this.cachedResult) {
@@ -19,31 +16,33 @@ export class BurnFilter implements Filter {
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
       let burned = false;
-      let burnAmount = new BN(0);
+      let burnAmount = 0;
       if (amount.value.uiAmount === 0) {
+        await sleep(1000);
         const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 1 });
-        console.log(transactionList);
         let signatureList = transactionList.map((transaction) => transaction.signature);
         let transactionDetails = await this.connection.getParsedTransactions(signatureList, {
           maxSupportedTransactionVersion: 0,
         });
+        // console.log(transactionDetails[0]?.transaction.message.instructions);
 
-        transactionDetails.forEach((transaction: any, i) => {
-          const transactionInstructions = transaction.message.instructions;
-          transactionInstructions.forEach((instruction: any) => {
-            if (instruction.parsed) {
-              console.log('instruction', instruction.parsed);
-              if (instruction.parsed.type === 'burn' || instruction.parsed.type === 'burnChecked') {
-                burned = true;
-                burnAmount = burnAmount.addn(instruction.parsed.info.amount).divn(LAMPORTS_PER_SOL);
-              }
+        transactionDetails[0]?.transaction.message.instructions?.forEach((instruction: any) => {
+          if (instruction.parsed) {
+            // console.log('instruction', instruction.parsed);
+            if (instruction.parsed.type === 'burn' || instruction.parsed.type === 'burnChecked') {
+              burned = true;
+              burnAmount = instruction.parsed.info.amount / (LAMPORTS_PER_SOL / 10 ** instruction.parsed.info.decimals);
             }
-          });
+          }
         });
       }
 
-      logger.debug(`burned: ${burned}, ${burnAmount} > ${BURN_AMOUNT}SOL, lpmint: ${poolKeys.lpMint}`);
-      const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
+      const result = {
+        ok: burned,
+        message: burned
+          ? `Burned -> ${burnAmount} > ${BURN_AMOUNT}SOL, lpmint: ${poolKeys.lpMint}`
+          : `Burned -> Creator didn't burn LP, lpmint: ${poolKeys.lpMint}`,
+      };
 
       if (result.ok) {
         this.cachedResult = result;
