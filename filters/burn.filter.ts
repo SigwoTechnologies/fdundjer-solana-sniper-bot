@@ -18,19 +18,32 @@ export class BurnFilter implements Filter {
 
     try {
       const amount = await this.connection.getTokenSupply(poolKeys.lpMint, this.connection.commitment);
-      // const burned = amount.value.uiAmount === 0;
-      // logger.debug(`burned: ${amount.value.uiAmount}SOL`);
-      // logger.trace({ lpmint: poolKeys.lpMint, uiAmount: amount.value.uiAmount });
-      // console.log(poolKeys);
-      const solAmount =
-        amount.value.uiAmount || amount.value.uiAmount == 0
-          ? amount.value.uiAmount / (LAMPORTS_PER_SOL / 10 ** 4)
-          : Number(amount.value.amount) / ((LAMPORTS_PER_SOL / 10 ** 4) * amount.value.decimals);
-      const burned = this.oldAmount - solAmount > BURN_AMOUNT;
-      logger.debug(
-        `burned: ${burned}, total: ${solAmount}SOL, burned: ${this.oldAmount - solAmount}SOL, BurnAmount: ${BURN_AMOUNT}`,
-      );
-      this.oldAmount = solAmount;
+      let burned = false;
+      let burnAmount = new BN(0);
+      if (amount.value.uiAmount === 0) {
+        const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 1 });
+        logger.info(`transactionList: ${transactionList}`);
+
+        let signatureList = transactionList.map((transaction) => transaction.signature);
+        let transactionDetails = await this.connection.getParsedTransactions(signatureList, {
+          maxSupportedTransactionVersion: 0,
+        });
+
+        transactionDetails.forEach((transaction: any, i) => {
+          const transactionInstructions = transaction.message.instructions;
+          transactionInstructions.forEach((instruction: any) => {
+            if (instruction.parsed) {
+              console.log('instruction', instruction.parsed);
+              if (instruction.parsed.type === 'burn' || instruction.parsed.type === 'burnChecked') {
+                burned = true;
+                burnAmount = burnAmount.addn(instruction.parsed.info.amount).divn(LAMPORTS_PER_SOL);
+              }
+            }
+          });
+        });
+      }
+
+      logger.debug(`burned: ${burned}, ${burnAmount} > ${BURN_AMOUNT}SOL, lpmint: ${poolKeys.lpMint}`);
       const result = { ok: burned, message: burned ? undefined : "Burned -> Creator didn't burn LP" };
 
       if (result.ok) {
