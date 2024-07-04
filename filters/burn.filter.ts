@@ -40,7 +40,7 @@ export class BurnFilter implements Filter {
       const result = {
         ok: burned,
         message: burned
-          ? `Burned -> ${burnAmount} > ${BURN_AMOUNT}SOL, lpmint: ${poolKeys.lpMint}`
+          ? `Burned -> ${burnAmount} > ${BURN_AMOUNT} SOL, lpmint: ${poolKeys.lpMint}`
           : `Burned -> Creator didn't burn LP, lpmint: ${poolKeys.lpMint}`,
       };
 
