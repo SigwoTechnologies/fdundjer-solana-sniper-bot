@@ -22,8 +22,7 @@ export class BurnFilter implements Filter {
       let burnAmount = new BN(0);
       if (amount.value.uiAmount === 0) {
         const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 1 });
-        logger.info(`transactionList: ${transactionList}`);
-
+        console.log(transactionList);
         let signatureList = transactionList.map((transaction) => transaction.signature);
         let transactionDetails = await this.connection.getParsedTransactions(signatureList, {
           maxSupportedTransactionVersion: 0,
