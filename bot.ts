@@ -150,11 +150,13 @@ export class Bot {
           const poolSize = response.value.uiAmount
             ? response.value.uiAmount * 10 ** response.value.decimals
             : Number(response.value.amount);
-          this.config.quoteAmount = new TokenAmount(
-            this.config.quoteToken,
-            `${Math.floor(poolSize * 0.01 * BUY_RATE)}`,
-            true,
-          );
+
+          //for test
+          // this.config.quoteAmount = new TokenAmount(
+          //   this.config.quoteToken,
+          //   `${Math.floor(poolSize * 0.01 * BUY_RATE)}`,
+          //   true,
+          // );
 
           const tokenOut = new Token(TOKEN_PROGRAM_ID, poolKeys.baseMint, poolKeys.baseDecimals);
           const result = await this.swap(

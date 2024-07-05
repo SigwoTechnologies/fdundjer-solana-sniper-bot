@@ -18,20 +18,23 @@ export class BurnFilter implements Filter {
       let burned = false;
       let burnAmount = 0;
       if (amount.value.uiAmount === 0) {
-        await sleep(1000);
-        const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 1 });
+        // logger.trace('Burned -> The Token Supply is 0');
+        // await sleep(300);
+        const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 2 });
+        // await sleep(300);
+        // logger.trace('Burned -> Getting Transaction Details');
         let signatureList = transactionList.map((transaction) => transaction.signature);
         let transactionDetails = await this.connection.getParsedTransactions(signatureList, {
           maxSupportedTransactionVersion: 0,
         });
-        // console.log(transactionDetails[0]?.transaction.message.instructions);
+        // console.log(transactionDetails[1]?.transaction.message.instructions);
 
-        transactionDetails[0]?.transaction.message.instructions?.forEach((instruction: any) => {
+        transactionDetails[1]?.transaction.message.instructions?.forEach((instruction: any) => {
           if (instruction.parsed) {
             // console.log('instruction', instruction.parsed);
-            if (instruction.parsed.type === 'burn' || instruction.parsed.type === 'burnChecked') {
-              burned = true;
-              burnAmount = instruction.parsed.info.amount / (LAMPORTS_PER_SOL / 10 ** instruction.parsed.info.decimals);
+            if (instruction.parsed.type === 'createAccountWithSeed') {
+              burnAmount = instruction.parsed.info.lamports / LAMPORTS_PER_SOL;
+              burned = burnAmount > BURN_AMOUNT;
             }
           }
         });

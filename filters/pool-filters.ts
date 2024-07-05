@@ -64,12 +64,12 @@ export class PoolFilters {
     const pass = result.every((r) => r.ok);
     // logger.trace(result);
 
-    if (pass) {
-      return true;
+    for (const filterResult of result) {
+      logger.trace(filterResult.message);
     }
 
-    for (const filterResult of result.filter((r) => !r.ok)) {
-      logger.trace(filterResult.message);
+    if (pass) {
+      return true;
     }
 
     return false;
