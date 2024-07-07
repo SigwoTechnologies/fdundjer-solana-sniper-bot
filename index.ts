@@ -275,7 +275,7 @@ const runListener = async () => {
   listeners.on('wallet', async (updatedAccountInfo: KeyedAccountInfo) => {
     const accountData = AccountLayout.decode(updatedAccountInfo.accountInfo.data);
 
-    console.log(accountData);
+    // console.log(accountData);
     if (accountData.mint.equals(quoteToken.mint)) {
       return;
     }
