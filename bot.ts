@@ -92,9 +92,9 @@ export class Bot {
       // await getAccount(this.connection, this.config.quoteAta, this.connection.commitment);
       return quoteAta;
     } catch (error) {
-      logger.error(
-        `${this.config.quoteToken.symbol} token account not found in wallet${index + 1}: ${wallet.publicKey.toString()}`,
-      );
+      // logger.error(
+      //   `${this.config.quoteToken.symbol} token account not found in wallet${index + 1}: ${wallet.publicKey.toString()}`,
+      // );
       return false;
     }
   }
