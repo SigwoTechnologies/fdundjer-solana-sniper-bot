@@ -13,25 +13,25 @@ import {
   getAssociatedTokenAddress,
   RawAccount,
   TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { Liquidity, LiquidityPoolKeysV4, LiquidityStateV4, Percent, Token, TokenAmount } from '@raydium-io/raydium-sdk';
 import { MarketCache, PoolCache, SnipeListCache } from './cache';
 import { PoolFilters } from './filters';
 import { TransactionExecutor } from './transactions';
-import { createPoolKeys, logger, NETWORK, sleep, BUY_RATE } from './helpers';
+import { createPoolKeys, logger, NETWORK, sleep, BUY_RATE, QUOTE_MINT, CUSTOM_FEE } from './helpers';
 import { Semaphore } from 'async-mutex';
 import BN from 'bn.js';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
 import { JitoTransactionExecutor } from './transactions/jito-rpc-transaction-executor';
 import { Context } from 'telegraf';
+import { Decimal } from 'decimal.js';
 
 export interface BotConfig {
-  wallet: Keypair;
+  walletList: Keypair[];
   minPoolSize: TokenAmount;
   maxPoolSize: TokenAmount;
   quoteToken: Token;
-  quoteAmount: TokenAmount;
-  quoteAta: PublicKey;
   maxTokensAtTheTime: number;
   useSnipeList: boolean;
   autoSell: boolean;
@@ -63,6 +63,8 @@ export class Bot {
   private readonly stopLoss = new Map<string, TokenAmount>();
   public readonly isWarp: boolean = false;
   public readonly isJito: boolean = false;
+  private quoteAmount = {} as Record<string, TokenAmount>;
+  private wallet = {} as Record<string, Keypair>;
 
   constructor(
     private readonly connection: Connection,
@@ -82,17 +84,46 @@ export class Bot {
     }
   }
 
-  async validate() {
+  async validate(index: number) {
+    const wallet = this.config.walletList[index];
     try {
-      await getAccount(this.connection, this.config.quoteAta, this.connection.commitment);
+      const quoteAta = getAssociatedTokenAddressSync(this.config.quoteToken.mint, wallet.publicKey);
+      await getAccount(this.connection, quoteAta, this.connection.commitment);
+      // await getAccount(this.connection, this.config.quoteAta, this.connection.commitment);
+      return quoteAta;
     } catch (error) {
       logger.error(
-        `${this.config.quoteToken.symbol} token account not found in wallet: ${this.config.wallet.publicKey.toString()}`,
+        `${this.config.quoteToken.symbol} token account not found in wallet${index + 1}: ${wallet.publicKey.toString()}`,
       );
       return false;
     }
+  }
 
-    return true;
+  async selectWallet(neededSolAmount: Decimal): Promise<any> {
+    let availableWalletList: Keypair[] = [];
+    for (let i = 0; i < this.config.walletList.length; i++) {
+      const quoteAta = await this.validate(i);
+      if (!quoteAta) {
+        continue;
+      }
+      let balance = new Decimal(await this.getSolBalance(quoteAta));
+      console.log(`${QUOTE_MINT} Balance in wallet(${i + 1}): ${balance}`);
+      if (neededSolAmount.lt(balance)) availableWalletList.push(this.config.walletList[i]);
+      await sleep(20);
+    }
+    if (availableWalletList.length == 0) return false;
+
+    // console.log({ availableWalletList });
+
+    return availableWalletList[Math.floor(Math.random() * availableWalletList.length)];
+  }
+
+  async getSolBalance(walletAddress: PublicKey): Promise<Decimal> {
+    try {
+      return new Decimal(await this.connection.getBalance(walletAddress));
+    } catch (error) {
+      return new Decimal(0);
+    }
   }
 
   public async buy(accountId: PublicKey, poolState: LiquidityStateV4) {
@@ -121,10 +152,7 @@ export class Bot {
     await this.semaphore.acquire();
 
     try {
-      const [market, mintAta] = await Promise.all([
-        this.marketStorage.get(poolState.marketId.toString()),
-        getAssociatedTokenAddress(poolState.baseMint, this.config.wallet.publicKey),
-      ]);
+      const [market] = await Promise.all([this.marketStorage.get(poolState.marketId.toString())]);
       const poolKeys: LiquidityPoolKeysV4 = createPoolKeys(accountId, poolState, market);
 
       if (!this.config.useSnipeList) {
@@ -148,28 +176,43 @@ export class Bot {
             this.connection.commitment,
           );
           const poolSize = response.value.uiAmount
-            ? response.value.uiAmount * 10 ** response.value.decimals
-            : Number(response.value.amount);
+            ? new Decimal(response.value.uiAmount).mul(10 ** response.value.decimals)
+            : new Decimal(response.value.amount);
 
-          //for test
-          // this.config.quoteAmount = new TokenAmount(
-          //   this.config.quoteToken,
-          //   `${Math.floor(poolSize * 0.01 * BUY_RATE)}`,
-          //   true,
-          // );
+          this.quoteAmount[poolKeys.baseMint.toString()] = new TokenAmount(
+            this.config.quoteToken,
+            // `${poolSize.div(100).mul(BUY_RATE).floor()}`,
+            // true,
+            0.005,
+            false,
+          );
+          const neededSolAmount = new Decimal(this.quoteAmount[poolKeys.baseMint.toString()].raw.toString()).mul(1.1);
+          // console.log({ neededSolAmount });
+          const wallet = await this.selectWallet(neededSolAmount);
+          if (!wallet) continue;
+
+          this.wallet[poolKeys.baseMint.toString()] = wallet;
+
+          const quoteAta = await getAssociatedTokenAddress(this.config.quoteToken.mint, wallet.publicKey);
+          const mintAta = await getAssociatedTokenAddress(poolState.baseMint, wallet.publicKey);
+          // console.log(this.quoteAmount[poolKeys.baseMint.toString()].raw.toString());
+          // console.log(wallet.publicKey.toString());
+          // console.log(quoteAta.toString(), mintAta.toString());
 
           const tokenOut = new Token(TOKEN_PROGRAM_ID, poolKeys.baseMint, poolKeys.baseDecimals);
           const result = await this.swap(
             poolKeys,
-            this.config.quoteAta,
+            quoteAta,
             mintAta,
             this.config.quoteToken,
             tokenOut,
-            this.config.quoteAmount,
+            this.quoteAmount[poolKeys.baseMint.toString()],
             this.config.buySlippage,
-            this.config.wallet,
+            wallet,
             'buy',
           );
+
+          // console.log(result);
 
           if (result.confirmed) {
             this.TGcontext?.reply(`https://solscan.io/tx/${result.signature}?cluster=${NETWORK}`);
@@ -247,26 +290,29 @@ export class Bot {
             `Send sell transaction attempt: ${i + 1}/${this.config.maxSellRetries}`,
           );
 
+          const wallet = this.wallet[poolKeys.baseMint.toString()];
+          const quoteAta = getAssociatedTokenAddressSync(this.config.quoteToken.mint, wallet.publicKey);
+
           const result = await this.swap(
             poolKeys,
             accountId,
-            this.config.quoteAta,
+            quoteAta,
             tokenIn,
             this.config.quoteToken,
             tokenAmountIn,
             this.config.sellSlippage,
-            this.config.wallet,
+            wallet,
             'sell',
           );
 
           if (result.confirmed) {
             this.TGcontext?.reply(
-              `https://dexscreener.com/solana/${rawAccount.mint.toString()}?maker=${this.config.wallet.publicKey}`,
+              `https://dexscreener.com/solana/${rawAccount.mint.toString()}?maker=${wallet.publicKey}`,
             );
             this.TGcontext?.reply(`https://solscan.io/tx/${result.signature}?cluster=${NETWORK}`);
             logger.info(
               {
-                dex: `https://dexscreener.com/solana/${rawAccount.mint.toString()}?maker=${this.config.wallet.publicKey}`,
+                dex: `https://dexscreener.com/solana/${rawAccount.mint.toString()}?maker=${wallet.publicKey}`,
                 mint: rawAccount.mint.toString(),
                 signature: result.signature,
                 url: `https://solscan.io/tx/${result.signature}?cluster=${NETWORK}`,
@@ -308,11 +354,13 @@ export class Bot {
     direction: 'buy' | 'sell',
   ) {
     const slippagePercent = new Percent(slippage, 100);
+    // console.log({ slippagePercent });
     const poolInfo = await Liquidity.fetchInfo({
       connection: this.connection,
       poolKeys,
     });
 
+    // console.log({ poolInfo });
     const computedAmountOut = Liquidity.computeAmountOut({
       poolKeys,
       poolInfo,
@@ -320,6 +368,7 @@ export class Bot {
       currencyOut: tokenOut,
       slippage: slippagePercent,
     });
+    // console.log({ computedAmountOut });
 
     const latestBlockhash = await this.connection.getLatestBlockhash();
     const { innerTransaction } = Liquidity.makeSwapFixedInInstruction(
@@ -336,6 +385,7 @@ export class Bot {
       poolKeys.version,
     );
 
+    // console.log(...innerTransaction.instructions);
     const messageV0 = new TransactionMessage({
       payerKey: wallet.publicKey,
       recentBlockhash: latestBlockhash.blockhash,
@@ -360,9 +410,12 @@ export class Bot {
         ...(direction === 'sell' ? [createCloseAccountInstruction(ataIn, wallet.publicKey, wallet.publicKey)] : []),
       ],
     }).compileToV0Message();
+    // console.log({ messageV0 });
 
     const transaction = new VersionedTransaction(messageV0);
+    // console.log({ transaction });
     transaction.sign([wallet, ...innerTransaction.signers]);
+    // console.log({ transaction });
 
     return this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
   }
@@ -415,15 +468,19 @@ export class Bot {
     }
 
     const timesToCheck = this.config.priceCheckDuration / this.config.priceCheckInterval;
-    const profitFraction = this.config.quoteAmount.mul(this.config.takeProfit).numerator.div(new BN(100));
+    const profitFraction = this.quoteAmount[poolKeys.baseMint.toString()]
+      .mul(this.config.takeProfit)
+      .numerator.div(new BN(100));
     const profitAmount = new TokenAmount(this.config.quoteToken, profitFraction, true);
-    const takeProfit = this.config.quoteAmount.add(profitAmount);
+    const takeProfit = this.quoteAmount[poolKeys.baseMint.toString()].add(profitAmount);
     let stopLoss: TokenAmount;
 
     if (!this.stopLoss.get(poolKeys.baseMint.toString())) {
-      const lossFraction = this.config.quoteAmount.mul(this.config.stopLoss).numerator.div(new BN(100));
+      const lossFraction = this.quoteAmount[poolKeys.baseMint.toString()]
+        .mul(this.config.stopLoss)
+        .numerator.div(new BN(100));
       const lossAmount = new TokenAmount(this.config.quoteToken, lossFraction, true);
-      stopLoss = this.config.quoteAmount.subtract(lossAmount);
+      stopLoss = this.quoteAmount[poolKeys.baseMint.toString()].subtract(lossAmount);
 
       this.stopLoss.set(poolKeys.baseMint.toString(), stopLoss);
     } else {
@@ -464,7 +521,7 @@ export class Bot {
         }
 
         if (this.config.skipSellingIfLostMoreThan > 0) {
-          const stopSellingFraction = this.config.quoteAmount
+          const stopSellingFraction = this.quoteAmount[poolKeys.baseMint.toString()]
             .mul(this.config.skipSellingIfLostMoreThan)
             .numerator.div(new BN(100));
 
@@ -473,7 +530,7 @@ export class Bot {
           if (amountOut.lt(stopSellingAmount)) {
             logger.debug(
               { mint: poolKeys.baseMint.toString() },
-              `Token dropped more than ${this.config.skipSellingIfLostMoreThan}%, sell stopped. Initial: ${this.config.quoteAmount.toFixed()} | Current: ${amountOut.toFixed()}`,
+              `Token dropped more than ${this.config.skipSellingIfLostMoreThan}%, sell stopped. Initial: ${this.quoteAmount[poolKeys.baseMint.toString()].toFixed()} | Current: ${amountOut.toFixed()}`,
             );
             this.stopLoss.delete(poolKeys.baseMint.toString());
             return false;

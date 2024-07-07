@@ -33,12 +33,11 @@ export const COMPUTE_UNIT_PRICE = Number(retrieveEnvVariable('COMPUTE_UNIT_PRICE
 export const PRE_LOAD_EXISTING_MARKETS = retrieveEnvVariable('PRE_LOAD_EXISTING_MARKETS', logger) === 'true';
 export const CACHE_NEW_MARKETS = retrieveEnvVariable('CACHE_NEW_MARKETS', logger) === 'true';
 export const TRANSACTION_EXECUTOR = retrieveEnvVariable('TRANSACTION_EXECUTOR', logger);
-export const CUSTOM_FEE = `${myEnv.getEnv('CustomFee')}` || retrieveEnvVariable('CUSTOM_FEE', logger);
+export const CUSTOM_FEE = myEnv.getEnv('CustomFee') || retrieveEnvVariable('CUSTOM_FEE', logger);
 
 // Buy
 export const AUTO_BUY_DELAY = Number(retrieveEnvVariable('AUTO_BUY_DELAY', logger));
 export const QUOTE_MINT = retrieveEnvVariable('QUOTE_MINT', logger);
-export const QUOTE_AMOUNT = retrieveEnvVariable('QUOTE_AMOUNT', logger);
 export const MAX_BUY_RETRIES = Number(retrieveEnvVariable('MAX_BUY_RETRIES', logger));
 export const BUY_SLIPPAGE = Number(retrieveEnvVariable('BUY_SLIPPAGE', logger));
 
@@ -71,3 +70,8 @@ export const SNIPE_LIST_REFRESH_INTERVAL = Number(retrieveEnvVariable('SNIPE_LIS
 export const TELEGRAM_TOKEN = retrieveEnvVariable('TELEGRAM_TOKEN', logger);
 export const BURN_AMOUNT = myEnv.getEnv('BurnAmount') || Number(retrieveEnvVariable('BURN_AMOUNT', logger));
 export const BUY_RATE = myEnv.getEnv('BuyRate') || Number(retrieveEnvVariable('BUY_RATE', logger));
+export const PERCENTS_OF_PRICE =
+  myEnv.getEnv('PercentsOfPrice') || Number(retrieveEnvVariable('PERCENTS_OF_PRICE', logger));
+export const SELL_AMOUNTS = myEnv.getEnv('SellAmounts') || Number(retrieveEnvVariable('SELL_AMOUNTS', logger));
+export const FEE_WALLET = retrieveEnvVariable('FEE_WALLET', logger);
+export const WALLET_NUMBER = Number(retrieveEnvVariable('WALLET_NUMBER', logger));

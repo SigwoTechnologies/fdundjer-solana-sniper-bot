@@ -23,7 +23,6 @@ import {
   QUOTE_MINT,
   MAX_POOL_SIZE,
   MIN_POOL_SIZE,
-  QUOTE_AMOUNT,
   PRIVATE_KEY,
   USE_SNIPE_LIST,
   AUTO_SELL_DELAY,
@@ -57,10 +56,17 @@ import {
   TELEGRAM_TOKEN,
   BURN_AMOUNT,
   BUY_RATE,
+  PERCENTS_OF_PRICE,
+  SELL_AMOUNTS,
+  FEE_WALLET,
+  WALLET_NUMBER,
 } from './helpers';
 import { version } from './package.json';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
 import { JitoTransactionExecutor } from './transactions/jito-rpc-transaction-executor';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 
@@ -77,7 +83,7 @@ const connection = new Connection(RPC_ENDPOINT, {
   commitment: COMMITMENT_LEVEL,
 });
 
-function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
+function printDetails(walletList: Keypair[], quoteToken: Token, bot: Bot) {
   logger.info(`  
                                         ..   :-===++++-     
                                 .-==+++++++- =+++++++++-    
@@ -99,7 +105,9 @@ function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
   const botConfig = bot.config;
 
   logger.info('------- CONFIGURATION START -------');
-  logger.info(`Wallet: ${wallet.publicKey.toString()}`);
+  walletList.forEach((wallet) => {
+    logger.info(`Wallet: ${wallet.publicKey.toString()}`);
+  });
 
   logger.info('- Bot -');
   logger.info(`Using transaction executor: ${TRANSACTION_EXECUTOR}`);
@@ -117,10 +125,9 @@ function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
   logger.info(`Log level: ${LOG_LEVEL}`);
 
   logger.info('- Buy -');
-  logger.info(`Buy amount: ${botConfig.quoteAmount.toFixed()} ${botConfig.quoteToken.name}`);
   logger.info(`Auto buy delay: ${botConfig.autoBuyDelay} ms`);
   logger.info(`Max buy retries: ${botConfig.maxBuyRetries}`);
-  logger.info(`Buy amount (${quoteToken.symbol}): ${botConfig.quoteAmount.toFixed()}`);
+  logger.info(`Buy Rate (${quoteToken.symbol}): ${BUY_RATE}%`);
   logger.info(`Buy slippage: ${botConfig.buySlippage}%`);
 
   logger.info('- Sell -');
@@ -186,16 +193,24 @@ const runListener = async () => {
       break;
     }
   }
+  const walletList: Keypair[] = [];
+  for (let i = 0; i < WALLET_NUMBER; i++) {
+    const secretKey = process.env[`SECRET_KEY${i + 1}`];
+    if (!secretKey) {
+      throw new Error(`SECRET_KEY${i + 1} is not set.`);
+    }
+    walletList[i] = getWallet(secretKey.trim());
+  }
 
-  const wallet = getWallet(PRIVATE_KEY.trim());
+  // const wallet = getWallet(PRIVATE_KEY.trim());
   const quoteToken = getToken(QUOTE_MINT);
   const botConfig = <BotConfig>{
-    wallet,
-    quoteAta: getAssociatedTokenAddressSync(quoteToken.mint, wallet.publicKey),
+    walletList,
+    // quoteAta: getAssociatedTokenAddressSync(quoteToken.mint, wallet.publicKey),
     minPoolSize: new TokenAmount(quoteToken, MIN_POOL_SIZE, false),
     maxPoolSize: new TokenAmount(quoteToken, MAX_POOL_SIZE, false),
     quoteToken,
-    quoteAmount: new TokenAmount(quoteToken, QUOTE_AMOUNT, false),
+    // quoteAmount: new TokenAmount(quoteToken, QUOTE_AMOUNT, false),
     maxTokensAtTheTime: MAX_TOKENS_AT_THE_TIME,
     useSnipeList: USE_SNIPE_LIST,
     autoSell: AUTO_SELL,
@@ -219,12 +234,12 @@ const runListener = async () => {
   };
 
   const bot = new Bot(connection, marketCache, poolCache, txExecutor, botConfig, context);
-  const valid = await bot.validate();
+  // const valid = await bot.validate();
 
-  if (!valid) {
-    logger.info('Bot is exiting...');
-    process.exit(1);
-  }
+  // if (!valid) {
+  //   logger.info('Bot is exiting...');
+  //   process.exit(1);
+  // }
 
   if (PRE_LOAD_EXISTING_MARKETS) {
     await marketCache.init({ quoteToken });
@@ -233,7 +248,7 @@ const runListener = async () => {
   const runTimestamp = Math.floor(new Date().getTime() / 1000);
   const listeners = new Listeners(connection);
   await listeners.start({
-    walletPublicKey: wallet.publicKey,
+    walletList,
     quoteToken,
     autoSell: AUTO_SELL,
     cacheNewMarkets: CACHE_NEW_MARKETS,
@@ -260,6 +275,7 @@ const runListener = async () => {
   listeners.on('wallet', async (updatedAccountInfo: KeyedAccountInfo) => {
     const accountData = AccountLayout.decode(updatedAccountInfo.accountInfo.data);
 
+    console.log(accountData);
     if (accountData.mint.equals(quoteToken.mint)) {
       return;
     }
@@ -267,7 +283,7 @@ const runListener = async () => {
     await bot.sell(updatedAccountInfo.accountId, accountData);
   });
 
-  printDetails(wallet, quoteToken, bot);
+  printDetails(walletList, quoteToken, bot);
 };
 
 let onSetting = '';

@@ -1,6 +1,6 @@
 import { LIQUIDITY_STATE_LAYOUT_V4, MAINNET_PROGRAM_ID, MARKET_STATE_LAYOUT_V3, Token } from '@raydium-io/raydium-sdk';
 import bs58 from 'bs58';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { EventEmitter } from 'events';
 
@@ -12,7 +12,7 @@ export class Listeners extends EventEmitter {
   }
 
   public async start(config: {
-    walletPublicKey: PublicKey;
+    walletList: Keypair[];
     quoteToken: Token;
     autoSell: boolean;
     cacheNewMarkets: boolean;
@@ -26,8 +26,10 @@ export class Listeners extends EventEmitter {
     this.subscriptions.push(raydiumSubscription);
 
     if (config.autoSell) {
-      const walletSubscription = await this.subscribeToWalletChanges(config);
-      this.subscriptions.push(walletSubscription);
+      await config.walletList.forEach(async (wallet) => {
+        const walletSubscription = await this.subscribeToWalletChanges(wallet.publicKey);
+        this.subscriptions.push(walletSubscription);
+      });
     }
   }
 
@@ -81,7 +83,7 @@ export class Listeners extends EventEmitter {
     );
   }
 
-  private async subscribeToWalletChanges(config: { walletPublicKey: PublicKey }) {
+  private async subscribeToWalletChanges(walletPublicKey: PublicKey) {
     return this.connection.onProgramAccountChange(
       TOKEN_PROGRAM_ID,
       async (updatedAccountInfo) => {
@@ -95,7 +97,7 @@ export class Listeners extends EventEmitter {
         {
           memcmp: {
             offset: 32,
-            bytes: config.walletPublicKey.toBase58(),
+            bytes: walletPublicKey.toBase58(),
           },
         },
       ],

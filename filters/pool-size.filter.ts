@@ -35,7 +35,7 @@ export class PoolSizeFilter implements Filter {
         }
       }
 
-      return { ok: inRange };
+      return { ok: inRange, message: `PoolSize -> Pool size ${poolSize.toFixed()}` };
     } catch (error) {
       logger.error({ mint: poolKeys.baseMint }, `Failed to check pool size`);
     }
