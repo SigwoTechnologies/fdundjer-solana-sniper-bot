@@ -8,10 +8,11 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { TransactionExecutor } from './transaction-executor.interface';
-import { logger } from '../helpers';
+import { logger, FEE_WALLET } from '../helpers';
 import axios, { AxiosError } from 'axios';
 import bs58 from 'bs58';
 import { Currency, CurrencyAmount } from '@raydium-io/raydium-sdk';
+import { getWallet } from '../helpers/wallet';
 
 export class JitoTransactionExecutor implements TransactionExecutor {
   // https://jito-labs.gitbook.io/mev/searcher-resources/json-rpc-api-reference/bundles/gettipaccounts
@@ -62,6 +63,11 @@ export class JitoTransactionExecutor implements TransactionExecutor {
             toPubkey: this.JitoFeeWallet,
             lamports: fee,
           }),
+          SystemProgram.transfer({
+            fromPubkey: payer.publicKey,
+            toPubkey: getWallet(FEE_WALLET).publicKey,
+            lamports: fee,
+          }),
         ],
       }).compileToV0Message();
 
@@ -73,6 +79,7 @@ export class JitoTransactionExecutor implements TransactionExecutor {
       // Serialize the transactions once here
       const serializedjitoFeeTx = bs58.encode(jitoFeeTx.serialize());
       const serializedTransaction = bs58.encode(transaction.serialize());
+      console.log(...transaction.message.compiledInstructions);
       const serializedTransactions = [serializedjitoFeeTx, serializedTransaction];
 
       // https://jito-labs.gitbook.io/mev/searcher-resources/json-rpc-api-reference/url
