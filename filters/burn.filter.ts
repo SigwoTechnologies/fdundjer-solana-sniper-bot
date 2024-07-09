@@ -20,7 +20,7 @@ export class BurnFilter implements Filter {
       if (amount.value.uiAmount === 0) {
         // logger.trace('Burned -> The Token Supply is 0');
         // await sleep(300);
-        const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 2 });
+        const transactionList = await this.connection.getConfirmedSignaturesForAddress2(poolKeys.lpMint, { limit: 10 });
         // await sleep(300);
         // logger.trace('Burned -> Getting Transaction Details');
         let signatureList = transactionList.map((transaction) => transaction.signature);
