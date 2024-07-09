@@ -181,10 +181,10 @@ export class Bot {
 
           this.quoteAmount[poolKeys.baseMint.toString()] = new TokenAmount(
             this.config.quoteToken,
-            // `${poolSize.div(100).mul(BUY_RATE).floor()}`,
-            // true,
-            0.0001,
-            false,
+            `${poolSize.div(100).mul(BUY_RATE).floor()}`,
+            true,
+            // 0.0001,
+            // false,
           );
           const neededSolAmount = new Decimal(this.quoteAmount[poolKeys.baseMint.toString()].raw.toString()).mul(1.1);
           // console.log({ neededSolAmount });
