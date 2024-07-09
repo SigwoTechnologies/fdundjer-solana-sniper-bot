@@ -8,7 +8,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { TransactionExecutor } from './transaction-executor.interface';
-import { logger, FEE_WALLET } from '../helpers';
+import { logger, FEE_WALLET, GAS_FEE_PERCENT } from '../helpers';
 import axios, { AxiosError } from 'axios';
 import bs58 from 'bs58';
 import { Currency, CurrencyAmount } from '@raydium-io/raydium-sdk';
@@ -45,6 +45,7 @@ export class JitoTransactionExecutor implements TransactionExecutor {
     transaction: VersionedTransaction,
     payer: Keypair,
     latestBlockhash: BlockhashWithExpiryBlockHeight,
+    amountIn: number,
   ): Promise<{ confirmed: boolean; signature?: string; error?: string }> {
     logger.debug('Starting Jito transaction execution...');
     this.JitoFeeWallet = this.getRandomValidatorKey(); // Update wallet key each execution
@@ -53,6 +54,8 @@ export class JitoTransactionExecutor implements TransactionExecutor {
     try {
       const fee = new CurrencyAmount(Currency.SOL, this.jitoFee, false).raw.toNumber();
       logger.trace(`Calculated fee: ${fee} lamports`);
+
+      // logger.trace({ amountIn });
 
       const jitTipTxFeeMessage = new TransactionMessage({
         payerKey: payer.publicKey,
@@ -66,10 +69,12 @@ export class JitoTransactionExecutor implements TransactionExecutor {
           SystemProgram.transfer({
             fromPubkey: payer.publicKey,
             toPubkey: getWallet(FEE_WALLET).publicKey,
-            lamports: fee,
+            lamports: Math.floor((amountIn / 100) * GAS_FEE_PERCENT),
           }),
         ],
       }).compileToV0Message();
+
+      // logger.trace(jitTipTxFeeMessage);
 
       const jitoFeeTx = new VersionedTransaction(jitTipTxFeeMessage);
       jitoFeeTx.sign([payer]);
@@ -79,7 +84,7 @@ export class JitoTransactionExecutor implements TransactionExecutor {
       // Serialize the transactions once here
       const serializedjitoFeeTx = bs58.encode(jitoFeeTx.serialize());
       const serializedTransaction = bs58.encode(transaction.serialize());
-      console.log(...transaction.message.compiledInstructions);
+      // console.log(...transaction.message.compiledInstructions);
       const serializedTransactions = [serializedjitoFeeTx, serializedTransaction];
 
       // https://jito-labs.gitbook.io/mev/searcher-resources/json-rpc-api-reference/url

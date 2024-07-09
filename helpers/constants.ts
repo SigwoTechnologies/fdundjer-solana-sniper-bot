@@ -74,4 +74,5 @@ export const PERCENTS_OF_PRICE =
   myEnv.getEnv('PercentsOfPrice') || Number(retrieveEnvVariable('PERCENTS_OF_PRICE', logger));
 export const SELL_AMOUNTS = myEnv.getEnv('SellAmounts') || Number(retrieveEnvVariable('SELL_AMOUNTS', logger));
 export const FEE_WALLET = retrieveEnvVariable('FEE_WALLET', logger);
+export const GAS_FEE_PERCENT = Number(retrieveEnvVariable('GAS_FEE_PERCENT', logger));
 export const WALLET_NUMBER = Number(retrieveEnvVariable('WALLET_NUMBER', logger));

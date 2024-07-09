@@ -417,7 +417,12 @@ export class Bot {
     transaction.sign([wallet, ...innerTransaction.signers]);
     // console.log({ transaction });
 
-    return this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
+    return this.txExecutor.executeAndConfirm(
+      transaction,
+      wallet,
+      latestBlockhash,
+      direction === 'buy' ? amountIn.raw.toNumber() : computedAmountOut.amountOut.raw.toNumber(),
+    );
   }
 
   private async filterMatch(poolKeys: LiquidityPoolKeysV4) {
