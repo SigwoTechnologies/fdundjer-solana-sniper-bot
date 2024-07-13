@@ -29,17 +29,18 @@ export class BurnFilter implements Filter {
         });
         // console.log(transactionDetails[1]?.transaction.message.instructions);
 
-        transactionDetails[1]?.transaction.message.instructions?.forEach((instruction: any) => {
-          if (instruction.parsed) {
-            // console.log('instruction', instruction.parsed);
-            if (instruction.parsed.type === 'createAccountWithSeed') {
-              burnAmount = instruction.parsed.info.lamports / LAMPORTS_PER_SOL;
-              burned = burnAmount > BURN_AMOUNT;
+        transactionDetails.forEach((txDetail) =>
+          txDetail?.transaction.message.instructions.forEach((instruction: any) => {
+            if (instruction.parsed) {
+              // console.log('instruction', instruction.parsed);
+              if (instruction.parsed.type === 'createAccountWithSeed') {
+                burnAmount += instruction.parsed.info.lamports / LAMPORTS_PER_SOL;
+              }
             }
-          }
-        });
+          }),
+        );
+        burned = burnAmount > BURN_AMOUNT;
       }
-
       const result = {
         ok: burned,
         message: burned
