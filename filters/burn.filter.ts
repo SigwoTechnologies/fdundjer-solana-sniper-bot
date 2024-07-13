@@ -39,6 +39,7 @@ export class BurnFilter implements Filter {
             }
           }),
         );
+        // console.log('mintAmount', burnAmount);
         burned = burnAmount > BURN_AMOUNT;
       }
       const result = {
