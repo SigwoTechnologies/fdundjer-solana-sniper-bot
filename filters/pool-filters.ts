@@ -21,6 +21,7 @@ export interface Filter {
 export interface FilterResult {
   ok: boolean;
   message?: string;
+  ignore?: boolean;
 }
 
 export interface PoolFilterArgs {
@@ -55,23 +56,25 @@ export class PoolFilters {
     }
   }
 
-  public async execute(poolKeys: LiquidityPoolKeysV4): Promise<boolean> {
+  public async execute(poolKeys: LiquidityPoolKeysV4): Promise<{ ok: boolean; ignore?: boolean }> {
     if (this.filters.length === 0) {
-      return true;
+      return { ok: true };
     }
 
     const result = await Promise.all(this.filters.map((f) => f.execute(poolKeys)));
     const pass = result.every((r) => r.ok);
+    const ignore = result.some((r) => r.ignore);
     // logger.trace(result);
 
     for (const filterResult of result) {
       logger.trace(filterResult.message);
     }
+    logger.trace('-----------------------');
 
     if (pass) {
-      return true;
+      return { ok: true, ignore };
     }
 
-    return false;
+    return { ok: false, ignore };
   }
 }

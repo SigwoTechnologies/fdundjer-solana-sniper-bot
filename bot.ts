@@ -444,7 +444,11 @@ export class Bot {
       try {
         const shouldBuy = await filters.execute(poolKeys);
 
-        if (shouldBuy) {
+        if (shouldBuy.ignore) {
+          logger.trace(`${poolKeys.baseMint.toString()} ignored by filters`);
+          return false;
+        }
+        if (shouldBuy.ok) {
           matchCount++;
 
           if (this.config.consecutiveMatchCount <= matchCount) {

@@ -52,7 +52,10 @@ export class MutableFilter implements Filter {
         message.push('has no socials');
       }
 
-      const result = { ok: ok, message: ok ? undefined : `MutableSocials -> Token ${message.join(' and ')}` };
+      const result = {
+        ok: ok,
+        message: ok ? `MutableSocials -> Passed` : `MutableSocials -> Token ${message.join(' and ')}`,
+      };
 
       if (!mutable) {
         this.cachedResult = result;

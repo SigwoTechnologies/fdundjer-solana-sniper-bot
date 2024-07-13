@@ -49,7 +49,7 @@ export class RenouncedFreezeFilter implements Filter {
 
       const result = {
         ok: ok,
-        message: ok ? `RenouncedFreeze -> Pass` : `RenouncedFreeze -> Creator can ${message.join(' and ')} tokens`,
+        message: ok ? `RenouncedFreeze -> Passed` : `RenouncedFreeze -> Creator can ${message.join(' and ')} tokens`,
       };
 
       if (result.ok) {

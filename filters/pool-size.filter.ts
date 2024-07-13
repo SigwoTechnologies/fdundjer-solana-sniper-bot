@@ -31,7 +31,11 @@ export class PoolSizeFilter implements Filter {
         inRange = poolSize.raw.gte(this.minPoolSize.raw);
 
         if (!inRange) {
-          return { ok: false, message: `PoolSize -> Pool size ${poolSize.toFixed()} < ${this.minPoolSize.toFixed()}` };
+          return {
+            ok: false,
+            message: `PoolSize -> Pool size ${poolSize.toFixed()} < ${this.minPoolSize.toFixed()}`,
+            ignore: true,
+          };
         }
       }
 
