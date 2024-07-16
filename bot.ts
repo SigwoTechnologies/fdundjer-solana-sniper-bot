@@ -106,7 +106,7 @@ export class Bot {
       if (!quoteAta) {
         continue;
       }
-      let balance = new Decimal(await this.getSolBalance(quoteAta));
+      let balance = new Decimal((await this.connection.getTokenAccountBalance(quoteAta)).value.amount);
       console.log(`${QUOTE_MINT} Balance in wallet(${i + 1}): ${balance}`);
       if (neededSolAmount.lt(balance)) availableWalletList.push(this.config.walletList[i]);
       await sleep(20);
@@ -116,14 +116,6 @@ export class Bot {
     // console.log({ availableWalletList });
 
     return availableWalletList[Math.floor(Math.random() * availableWalletList.length)];
-  }
-
-  async getSolBalance(walletAddress: PublicKey): Promise<Decimal> {
-    try {
-      return new Decimal(await this.connection.getBalance(walletAddress));
-    } catch (error) {
-      return new Decimal(0);
-    }
   }
 
   public async buy(accountId: PublicKey, poolState: LiquidityStateV4) {
@@ -189,7 +181,11 @@ export class Bot {
           const neededSolAmount = new Decimal(this.quoteAmount[poolKeys.baseMint.toString()].raw.toString()).mul(1.1);
           // console.log({ neededSolAmount });
           const wallet = await this.selectWallet(neededSolAmount);
-          if (!wallet) continue;
+          if (!wallet) {
+            logger.info(`No wallet selected`);
+            continue;
+          }
+          logger.info(`${wallet}: wallet selected`);
 
           this.wallet[poolKeys.baseMint.toString()] = wallet;
 
