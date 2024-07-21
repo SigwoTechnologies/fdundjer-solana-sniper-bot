@@ -74,7 +74,7 @@ app.get('/', (req: any, res: any) => {
 });
 
 app.listen(process.env.PORT, () => {
-  console.log('Example app listening on port 3000!');
+  console.log('Example app listening on port 3069!');
 });
 
 const connection = new Connection(RPC_ENDPOINT, {
@@ -104,6 +104,7 @@ function printDetails(walletList: Keypair[], quoteToken: Token, bot: Bot) {
   const botConfig = bot.config;
 
   logger.info('------- CONFIGURATION START -------');
+  logger.info('- Wallet -');
   walletList.forEach((wallet) => {
     logger.info(`Wallet: ${wallet.publicKey.toString()}`);
   });
@@ -274,7 +275,7 @@ const runListener = async () => {
   listeners.on('wallet', async (updatedAccountInfo: KeyedAccountInfo) => {
     const accountData = AccountLayout.decode(updatedAccountInfo.accountInfo.data);
 
-    // console.log(accountData);
+    console.log(accountData);
     if (accountData.mint.equals(quoteToken.mint)) {
       return;
     }
@@ -382,14 +383,14 @@ tBot.on('callback_query', async (ctx: any) => {
       case START:
         if (running) return;
         running = true;
-        await ctx.reply('Sinper is running!');
-        logger.info('Sinper is running!');
+        await ctx.reply('Sniper is running!');
+        logger.info('Sniper is running!');
         await sendHome(ctx);
         break;
       case STOP:
         running = false;
-        await ctx.reply('Sinper is Stopped!');
-        logger.info('Sinper is Stopped!');
+        await ctx.reply('Sniper is Stopped!');
+        logger.info('Sniper is Stopped!');
         await sendHome(ctx);
         break;
       case SETTING:

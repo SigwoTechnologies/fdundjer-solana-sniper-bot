@@ -114,7 +114,8 @@ export class Bot {
     if (availableWalletList.length == 0) return false;
 
     // console.log({ availableWalletList });
-
+    logger.trace({ availableWalletList }, `Available Wallets...`);
+    
     return availableWalletList[Math.floor(Math.random() * availableWalletList.length)];
   }
 
